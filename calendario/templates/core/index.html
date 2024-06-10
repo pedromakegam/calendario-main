@@ -1,0 +1,486 @@
+{% load static %}
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeoBuild</title>
+  <link href='https://unpkg.com/fullcalendar@5.10.1/main.min.css' rel='stylesheet' />
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <script src='https://unpkg.com/fullcalendar@5.10.1/main.min.js'></script>
+  <script src='https://unpkg.com/@fullcalendar/interaction@5.10.1/main.min.js'></script>
+  <link rel="stylesheet" href="{% static 'css/home.css' %}">
+</head>
+<body>
+
+<div id='external-events'>
+  <p>
+    <strong>Lista de Obras</strong>
+  </p>
+  <div id="obra-list">
+    <!-- Lista de obras será gerada dinamicamente -->
+  </div>
+  <p>
+    <input type='checkbox' id='drop-remove' />
+    <label for='drop-remove'>Remover após soltar</label>
+  </p>
+
+  <div id="encarregados-table">
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>Encarregado</th>
+          <th>US</th>
+        </tr>
+      </thead>
+      <tbody id="encarregados-body">
+        <!-- Linhas da tabela serão geradas dinamicamente -->
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id='calendar-container'>
+  <div id='calendar'></div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="eventModal" tabindex="-1" role="dialog" aria-labelledby="eventModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="eventModalLabel">Detalhes do Evento</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p><strong>Nome do Evento:</strong> <span id="eventName"></span></p>
+        <p><strong>Início:</strong> <span id="eventStart"></span></p>
+        <p><strong>Fim:</strong>  <input name="end" id="eventEnd" placeholder=""></p>
+
+        <div class="form-group">
+          <label for="pes"><strong>PES:</strong></label>
+          <input type="text" class="form-control" id="pes">
+        </div>
+
+        <div class="form-group">
+          <label for="desligamento"><strong>Desligamento:</strong></label>
+          <select class="form-control" id="desligamento">
+            <option>Sim</option>
+            <option>Não</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="servico"><strong>Serviço:</strong></label>
+          <select class="form-control" id="servico">
+            <option>Implantar postes</option>
+            <option>Lançamento de condutores</option>
+            <option>Instalar Equipamentos</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="postes"><strong>Postes:</strong></label>
+          <input type="number" class="form-control" id="postes">
+        </div>
+
+        <div class="form-group d-none">
+          <label for="apoioLinhaViva"><strong>Apoio Linha Viva:</strong></label>
+          <select class="form-control" id="apoioLinhaViva">
+            <option>Sim</option>
+            <option>Não</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="concluir"><strong>Concluir:</strong></label>
+          <input type="checkbox" id="concluir">
+        </div>
+
+        <div class="form-group">
+          <label for="status"><strong>Status:</strong></label>
+          <select class="form-control" id="status">
+            <option>Agendado</option>
+            <option>Não Executado</option>
+            <option>Executado</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="encarregadoDropdown"><strong>Encarregado:</strong></label>
+          <select class="form-control" id="encarregadoDropdown">
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-danger" id="deleteEvent">Deletar</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+        <button type="button" class="btn btn-primary" id="saveEvent">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  }
+
+  var csrftoken = getCsrfToken();
+</script>
+
+<script>
+  function editEventInBackend(eventId, eventData) {
+    fetch(`/api/edit_event/${eventId}/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrftoken 
+      },
+      body: JSON.stringify(eventData)
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('Evento editado com sucesso:', data);
+    })
+    .catch(error => {
+      console.error('Erro ao editar evento:', error);
+    });
+  }
+
+  function deleteEventFromBackend(eventId) {
+    fetch(`/api/delete_event/${eventId}/`, {
+      method: 'DELETE',
+      headers: {
+        'X-CSRFToken': csrftoken
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('Evento deletado com sucesso:', data);
+    })
+    .catch(error => {
+      console.error('Erro ao deletar evento:', error);
+    });
+  }
+
+  function saveEventToBackend(eventData) {
+    fetch('/api/save_event/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrftoken 
+      },
+      body: JSON.stringify(eventData)
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('Evento salvo com sucesso:', data);
+      // Atualiza o ID do evento criado
+      currentEvent.id = data.id;
+      calendar.getEventById(data.tempId).remove();
+      calendar.addEvent({
+        id: data.id,
+        title: currentEvent.title,
+        start: currentEvent.start,
+        end: currentEvent.end,
+        extendedProps: {
+          pes: currentEvent.pes,
+          desligamento: currentEvent.desligamento,
+          servico: currentEvent.servico,
+          postes: currentEvent.postes,
+          apoioLinhaViva: currentEvent.apoioLinhaViva,
+          concluir: currentEvent.concluir,
+          status: currentEvent.status,
+          encarregado: currentEvent.encarregado,
+          us: currentEvent.us
+        }
+      });
+    })
+    .catch(error => {
+      console.error('Erro ao salvar evento:', error);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var obras = [];
+    var encarregados = [];
+    var usPorEncarregado = {};
+  
+    function loadObras() {
+      return fetch('/api/get_obras/')
+        .then(response => response.json())
+        .then(data => {
+          obras = data.map(obra => ({
+            projeto: obra.projeto,
+            titulo: obra.nome,
+            Municipio: obra.municipio,
+            US: obra.us || 0  // Adicione um campo US caso ele não exista no modelo
+          }));
+          renderObras();
+        })
+        .catch(error => {
+          console.error('Erro ao carregar obras:', error);
+        });
+    }
+  
+    function loadEncarregados() {
+      return fetch('/api/get_encarregados/')
+        .then(response => response.json())
+        .then(data => {
+          encarregados = data;
+          encarregados.forEach(function(encarregado) {
+            usPorEncarregado[encarregado.nome] = 0;
+          });
+          renderEncarregados();
+        })
+        .catch(error => {
+          console.error('Erro ao carregar encarregados:', error);
+        });
+    }
+  
+    function loadEvents() {
+      fetch('/api/get_events/')
+        .then(response => response.json())
+        .then(data => {
+          data.forEach(event => {
+            calendar.addEvent(event); // Adiciona cada evento individualmente
+          });
+        })
+        .catch(error => {
+          console.error('Erro ao carregar eventos:', error);
+        });
+    }
+  
+    function renderObras() {
+      var obraListEl = document.getElementById('obra-list');
+      obras.forEach(function(obra) {
+        var obraEl = document.createElement('div');
+        obraEl.className = 'fc-event fc-h-event fc-daygrid-event fc-daygrid-block-event';
+        obraEl.innerHTML = `<div class='fc-event-main'>${obra.projeto} - ${obra.titulo} - ${obra.Municipio} - ${obra.US}</div>`;
+        obraListEl.appendChild(obraEl);
+      });
+    }
+  
+    function renderEncarregados() {
+      var encarregadoDropdown = document.getElementById('encarregadoDropdown');
+      encarregados.forEach(function(encarregado) {
+        var optionEl = document.createElement('option');
+        optionEl.value = encarregado.nome;
+        optionEl.textContent = encarregado.nome;
+        encarregadoDropdown.appendChild(optionEl);
+      });
+      atualizarTabelaEncarregados();
+    }
+  
+    function atualizarTabelaEncarregados() {
+      var encarregadosBody = document.getElementById('encarregados-body');
+      encarregadosBody.innerHTML = '';
+      for (var nome in usPorEncarregado) {
+        var tr = document.createElement('tr');
+        tr.innerHTML = `<td>${nome}</td><td>${usPorEncarregado[nome]}</td>`;
+        encarregadosBody.appendChild(tr);
+      }
+    }
+    
+    function formatDateToDDMMYYYY(date) {
+      let day = date.getDate();
+      let month = date.getMonth() + 1; // Janeiro é 0!
+      let year = date.getFullYear();
+    
+      // Adiciona zero à esquerda para dia e mês se for menor que 10
+      if (day < 10) {
+        day = '0' + day;
+      }
+      if (month < 10) {
+        month = '0' + month;
+      }
+    
+      return `${day}/${month}/${year}`;
+    }
+    
+
+    Promise.all([loadObras(), loadEncarregados()]).then(() => {
+      var Calendar = FullCalendar.Calendar;
+      var Draggable = FullCalendar.Draggable;
+      var containerEl = document.getElementById('external-events');
+      var calendarEl = document.getElementById('calendar');
+      var checkbox = document.getElementById('drop-remove');
+      var eventNameSpan = document.getElementById("eventName");
+      var eventStartSpan = document.getElementById("eventStart");
+      var eventEndSpan = document.getElementById("eventEnd");
+      var deleteButton = document.getElementById("deleteEvent");
+      var saveButton = document.getElementById("saveEvent");
+      var currentEvent;
+    
+      new Draggable(containerEl, {
+        itemSelector: '.fc-event',
+        eventData: function(eventEl) {
+          var title = eventEl.innerText;
+          var obra = obras.find(o => `${o.projeto} - ${o.titulo} - ${o.Municipio} - ${o.US}` === title);
+          if (obra) {
+            return {
+              title: title,
+              us: obra.US
+            };
+          }
+          return {
+            title: title
+          };
+        }
+      });
+    
+      var calendar = new Calendar(calendarEl, {
+        headerToolbar: {
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        locale: 'pt-br',
+        editable: true,
+        droppable: true,
+        events: [], // Inicialmente vazio
+        eventClick: function(info) {
+          currentEvent = info.event;
+          eventNameSpan.innerText = currentEvent.title;
+          eventStartSpan.innerText = formatDateToDDMMYYYY(currentEvent.start);
+          eventEndSpan.placeholder = formatDateToDDMMYYYY(currentEvent.end);
+          eventEndSpan.value = formatDateToDDMMYYYY(currentEvent.end);
+    
+          document.getElementById('eventStart').value = currentEvent.start.toISOString().slice(0, 16);
+          document.getElementById('eventEnd').value = formatDateToDDMMYYYY(currentEvent.end);
+          document.getElementById('pes').value = currentEvent.extendedProps.pes || '';
+          document.getElementById('desligamento').value = currentEvent.extendedProps.desligamento || '';
+          document.getElementById('servico').value = currentEvent.extendedProps.servico || '';
+          document.getElementById('postes').value = currentEvent.extendedProps.postes || '';
+          document.getElementById('apoioLinhaViva').value = currentEvent.extendedProps.apoio_linha_viva || '';
+          document.getElementById('concluir').checked = currentEvent.extendedProps.concluir || false;
+          document.getElementById('status').value = currentEvent.extendedProps.status || '';
+          document.getElementById('encarregadoDropdown').value = currentEvent.extendedProps.encarregado || '';
+          $('#eventModal').modal('show');
+        },
+        drop: function(info) {
+          var title = info.draggedEl.innerText;
+          var obra = obras.find(o => `${o.projeto} - ${o.titulo} - ${o.Municipio} - ${o.US}` === title);
+          var us = obra ? obra.US : 0;
+          var encarregado = encarregadoDropdown.value;
+          if (encarregado) {
+            usPorEncarregado[encarregado] += us;
+            atualizarTabelaEncarregados();
+          }
+          if (checkbox.checked) {
+            info.draggedEl.parentNode.removeChild(info.draggedEl);
+          }
+          currentEvent = {
+            tempId: Date.now().toString(), // Gera um ID temporário único para o evento
+            title: title,
+            start: info.date,
+            us: us,
+            encarregado: encarregado
+          };
+          calendar.addEvent({
+            id: currentEvent.tempId,
+            title: title,
+            start: info.date,
+            extendedProps: {
+              us: us,
+              encarregado: encarregado
+            }
+          }); 
+          eventNameSpan.innerText = title;
+          eventStartSpan.innerText = info.date.toLocaleDateString();
+          eventEndSpan.placeholder = '';
+          $('#eventModal').modal('show');
+        }
+      });
+    
+      calendar.render();
+    
+      function loadEvents() {
+        fetch('/api/get_events/')
+          .then(response => response.json())
+          .then(data => {
+            data.forEach(event => {
+              calendar.addEvent(event);
+            });
+          })
+          .catch(error => {
+            console.error('Erro ao carregar eventos:', error);
+          });
+      }
+    
+      loadEvents();
+    
+      // Funções para deletar e salvar eventos
+      deleteButton.onclick = function() {
+        if (currentEvent) {
+          var title = currentEvent.title;
+          var encarregado = encarregadoDropdown.value;
+          var obra = obras.find(o => `${o.projeto} - ${o.titulo} - ${o.Municipio} - ${o.US}` === title);
+          var us = obra ? obra.US : 0;
+          if (encarregado) {
+            usPorEncarregado[encarregado] -= us;
+            atualizarTabelaEncarregados();
+          }
+          deleteEventFromBackend(currentEvent.id); 
+          calendar.getEventById(currentEvent.id).remove();
+          $('#eventModal').modal('hide');
+          location.reload();
+        }
+      };
+    
+      saveButton.onclick = function() {
+        if (currentEvent) {
+          var pes = document.getElementById('pes').value;
+          var desligamento = document.getElementById('desligamento').value;
+          var servico = document.getElementById('servico').value;
+          var postes = document.getElementById('postes').value;
+          var apoioLinhaViva = document.getElementById('apoioLinhaViva').value;
+          var concluir = document.getElementById('concluir').checked;
+          var status = document.getElementById('status').value;
+          var encarregado = encarregadoDropdown.value;
+          var end = document.getElementById('eventEnd').value;
+    
+          var eventData = {
+            id: currentEvent.id || null, // Apenas defina o ID se ele existir
+            tempId: currentEvent.tempId || null,
+            title: currentEvent.title,
+            start: currentEvent.start,
+            end: end,
+            pes: pes,
+            desligamento: desligamento,
+            servico: servico,
+            postes: postes,
+            apoioLinhaViva: apoioLinhaViva,
+            concluir: concluir,
+            status: status,
+            encarregado: encarregado,
+            us: currentEvent.us 
+          };
+    
+          if (currentEvent.id) {
+            editEventInBackend(currentEvent.id, eventData); 
+          } else {
+            saveEventToBackend(eventData); 
+          }
+          
+          $('#eventModal').modal('hide');
+          console.log('Success');
+          location.reload();
+        } else {
+          console.error('Erro: currentEvent não está definido.');
+        }
+      };
+    });
+    
+  });
+</script>
+
+</body>
+</html>
