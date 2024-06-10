@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-!8mq6!_emu&c&t1fdzr*3_apk!zl(*cf-x6hi7u*#394hv#*_p
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['calendario-trc4.onrender.com', '127.0.0.1']
+ALLOWED_HOSTS = ['pedrovanderlan.onrender.com','calendario-trc4.onrender.com', '127.0.0.1']
 
 CSRF_TRUSTED_ORIGINS = [
     'https://calendario-trc4.onrender.com/*', 'http://127.0.0.1/*'
